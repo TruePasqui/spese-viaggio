@@ -105,7 +105,7 @@ const AVATARS = [
   {bg:"#FAEEDA",c:"#633806"},{bg:"#FBEAF0",c:"#72243E"}
 ];
 
-let state = {members:[], expenses:[]};
+let state = {members:[], expenses:[], deleted:[]};
 let syncing = false;
 let currentTab = "spese";
 let online = navigator.onLine;
@@ -120,12 +120,13 @@ function saveLocal() {
 
 function mergeStates(local, remote) {
   const allMembers = [...new Set([...local.members, ...remote.members])];
+  const allDeleted = [...new Set([...(local.deleted||[]), ...(remote.deleted||[])])];
   const localIds = new Set(local.expenses.map(e=>e.id));
   const allExpenses = [
     ...local.expenses,
     ...remote.expenses.filter(e=>!localIds.has(e.id))
-  ].sort((a,b)=>a.id-b.id);
-  return {members:allMembers, expenses:allExpenses};
+  ].filter(e=>!allDeleted.includes(e.id)).sort((a,b)=>a.id-b.id);
+  return {members:allMembers, expenses:allExpenses, deleted:allDeleted};
 }
 
 async function syncWithServer() {
@@ -139,7 +140,7 @@ async function syncWithServer() {
     });
     if(!r.ok) throw new Error();
     const d = await r.json();
-    const remote = d.record || {members:[],expenses:[]};
+    const remote = d.record || {members:[],expenses:[],deleted:[]};
     const merged = mergeStates(state, remote);
     const changed = JSON.stringify(merged) !== JSON.stringify(remote);
     state = merged;
@@ -331,6 +332,8 @@ async function addExpense(){
 }
 
 async function removeExpense(id){
+  if(!state.deleted) state.deleted=[];
+  state.deleted.push(id);
   state.expenses=state.expenses.filter(e=>e.id!==id);
   saveLocal();render();syncWithServer();
 }
