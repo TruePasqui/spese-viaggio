@@ -76,7 +76,10 @@ input:focus,select:focus{border-color:#888}
         <div><div class="label">Descrizione</div><input id="exp-desc" placeholder="es. Cena, Hotel..." class="fullw" /></div>
         <div><div class="label">Importo (&euro;)</div><input id="exp-amount" type="number" placeholder="0.00" min="0" step="0.01" class="fullw" /></div>
       </div>
-      <div style="margin-bottom:12px"><div class="label">Pagato da</div><select id="exp-payer" class="fullw"></select></div>
+      <div class="grid2" style="margin-bottom:8px">
+        <div><div class="label">Pagato da</div><select id="exp-payer" class="fullw"></select></div>
+        <div><div class="label">Data</div><input id="exp-date" type="date" class="fullw" /></div>
+      </div>
       <button class="btn btn-primary fullw" onclick="addExpense()">+ Aggiungi spesa</button>
       <div class="sep">
         <div class="section-title" id="exp-count-label">Tutte le spese</div>
@@ -178,6 +181,18 @@ function av(name,idx,size=24){
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${a.bg};color:${a.c};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:500;flex-shrink:0">${name.slice(0,2).toUpperCase()}</div>`;
 }
 function fmt(n){return "\u20ac"+parseFloat(n).toFixed(2);}
+function fmtDate(d){
+  if(!d) return "";
+  const [y,m,day]=d.split("-");
+  return `${day}/${m}`;
+}
+function setTodayDate(){
+  const inp=document.getElementById("exp-date");
+  if(inp&&!inp.value){
+    const now=new Date();
+    inp.value=now.toISOString().split("T")[0];
+  }
+}
 
 function render(){
   renderMembers();renderPayer();renderExpenses();
@@ -210,7 +225,7 @@ function renderExpenses(){
     return `<div class="expense-item">
       <div style="display:flex;align-items:center;gap:8px">
         ${av(e.payer,idx>=0?idx:0,26)}
-        <div><div style="font-weight:500">${e.desc}</div><div class="muted">pagato da ${e.payer}</div></div>
+        <div><div style="font-weight:500">${e.desc}</div><div class="muted">${e.date?fmtDate(e.date)+' · ':''}pagato da ${e.payer}</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-weight:500;font-size:15px">${fmt(e.amount)}</span>
@@ -306,10 +321,12 @@ async function addExpense(){
   const desc=document.getElementById("exp-desc").value.trim();
   const amt=parseFloat(document.getElementById("exp-amount").value);
   const payer=document.getElementById("exp-payer").value;
+  const date=document.getElementById("exp-date").value;
   if(!desc||isNaN(amt)||amt<=0||!payer)return;
-  state.expenses.push({id:Date.now(),desc,amount:amt,payer});
+  state.expenses.push({id:Date.now(),desc,amount:amt,payer,date});
   document.getElementById("exp-desc").value="";
   document.getElementById("exp-amount").value="";
+  setTodayDate();
   saveLocal();render();syncWithServer();
 }
 
@@ -323,6 +340,7 @@ document.getElementById("exp-desc").addEventListener("keydown",e=>{if(e.key==="E
 
 loadLocal();
 render();
+setTodayDate();
 setStatus(online?"syncing":"offline");
 if(online) syncWithServer();
 setInterval(()=>{if(online)syncWithServer();},15000);
